@@ -43,15 +43,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!r.ok || !data.access_token) {
       console.error('[refresh] Instagram rechazó la renovación:', data);
-      return res.status(500).json({ ok: false, error: data.error ?? data });
+      return res
+        .status(500)
+        .json({ ok: false, step: 'instagram', error: data.error ?? data });
     }
 
-    await setStoredToken(data.access_token);
     const days = data.expires_in ? Math.round(data.expires_in / 86400) : '?';
+
+    // Guardar en Upstash por separado para poder reportar si falla el guardado.
+    try {
+      await setStoredToken(data.access_token);
+    } catch (storeErr) {
+      console.error('[refresh] token renovado pero falló guardarlo:', storeErr);
+      return res.status(500).json({
+        ok: false,
+        step: 'store',
+        error: String(storeErr),
+        note: 'El token se renovó en Instagram pero no se pudo guardar en Upstash. Revisá UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN.',
+      });
+    }
+
     console.log(`[refresh] token renovado OK, vence en ~${days} días`);
     return res.status(200).json({ ok: true, expires_in_days: days });
   } catch (err) {
     console.error('[refresh] error renovando token:', err);
-    return res.status(500).json({ ok: false });
+    return res.status(500).json({ ok: false, step: 'unknown', error: String(err) });
   }
 }
