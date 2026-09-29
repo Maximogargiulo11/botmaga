@@ -4,5 +4,11 @@
     "api/instagram/webhook.ts": {
       "maxDuration": 15
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/instagram/refresh-token",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

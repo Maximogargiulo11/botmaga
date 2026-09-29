@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { getActiveToken } from './token-store.js';
 
 /**
  * Utilidades para hablar con la API de Instagram/Meta:
@@ -11,7 +12,6 @@ import crypto from 'node:crypto';
 const GRAPH_BASE = process.env.META_GRAPH_BASE || 'https://graph.instagram.com';
 const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v21.0';
 
-const ACCESS_TOKEN = process.env.IG_ACCESS_TOKEN || '';
 const APP_SECRET = process.env.META_APP_SECRET || '';
 
 /**
@@ -37,8 +37,9 @@ export function verifySignature(rawBody: string, signatureHeader?: string): bool
  * Usa el endpoint /me/messages con el access token de la cuenta.
  */
 export async function sendTextMessage(recipientId: string, text: string): Promise<void> {
-  if (!ACCESS_TOKEN) {
-    throw new Error('Falta IG_ACCESS_TOKEN en las variables de entorno');
+  const accessToken = await getActiveToken();
+  if (!accessToken) {
+    throw new Error('No hay token de Instagram disponible (IG_ACCESS_TOKEN / Upstash)');
   }
 
   const url = `${GRAPH_BASE}/${GRAPH_VERSION}/me/messages`;
@@ -47,7 +48,7 @@ export async function sendTextMessage(recipientId: string, text: string): Promis
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({
       recipient: { id: recipientId },
